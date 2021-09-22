@@ -97,21 +97,25 @@ export function measure(a: Point2D, b: Point2D) {
 function search(node: SearchNode, pos: Point2D, k: number, r: number, result: Array<MeasuredPoint>) {
   const d = measure(pos, node)
   const size = result.length
-  var index = 0
-  if (size > 0) {
-    index = size
+  var index = -1
+  if (size > 0 && d < result[size - 1].dist) {
+    index = size - 1
     while (index > 0) {
       if (d >= result[index - 1].dist) break
       index -= 1;
     }
+  } else if (size < k || d <= r) {
+    index = size
   }
-  result.splice(index, 0, {
-    x: node.x,
-    y: node.y,
-    dist: d
-  })
-  if (size === k && result[size].dist > r) {
-    result.pop()
+  if (index >= 0) {
+    result.splice(index, 0, {
+      x: node.x,
+      y: node.y,
+      dist: d
+    })
+    if (size === k && result[size].dist > r) {
+      result.pop()
+    }
   }
   const compareX = (node.depth % 2 === 0)
   var threshold = compareX ? node.x : node.y
