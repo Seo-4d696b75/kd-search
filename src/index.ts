@@ -1,4 +1,11 @@
 
+/**
+ * 平面状の点  
+ * 
+ * 球面を扱う場合は  
+ * - x: 経度 longitude
+ * - y: 緯度 latitude
+ */
 export interface Point2D {
   x: number
   y: number
@@ -16,13 +23,27 @@ export function pointArrayEquals(a: Array<Point2D>, b: Array<Point2D>) {
   return true
 }
 
+/**
+ * kd-tree の頂点
+ * 
+ * この頂点自身がひとつの座標点をもち,
+ * left には自身より小さい座標点が, 
+ * right には自身より大きい座標点が含まれる  
+ * 座標点 Point2D の大小はは頂点の depth によって x,y 座標の大小で比較する
+ */
 export interface SearchNode extends Point2D {
   depth: number
   left?: SearchNode
   right?: SearchNode
 }
 
+/**
+ * 探索結果の座標点
+ */
 export interface MeasuredPoint extends Point2D {
+  /**
+   * 探索の中心点からの距離
+   */
   dist: number
 }
 
@@ -71,18 +92,48 @@ export function releaseTree(root: SearchNode) {
   root.right = undefined
 }
 
-export function searchNearest(root: SearchNode, query: Point2D, k: number, r: number = 0): Array<MeasuredPoint> {
+/**
+ * kd-tree で最近傍探索  
+ * 
+ * 距離の計算に関して： sphere === false の場合はx,y座標の値に基づくユークリッド距離
+ * sphere === true の場合はx,yを緯度・経度に読み替えて半径 @see SPHERE_RADIUS の球面上の大円距離で計算する
+ * @param root 探索するkd-treeの根本
+ * @param query この点の近傍点を探索する
+ * @param k k番目までに近い点を探索する
+ * @param r query からの距離がr以内の近傍点をすべて探索する
+ * @param sphere false: ユークリッド距離 true: 球面上の大円距離 で計算する
+ * @returns query から近い順にソートされた点のリスト length >= k
+ */
+export function searchNearest(root: SearchNode, query: Point2D, k: number, r: number = 0, sphere: boolean = false): Array<MeasuredPoint> {
   var result: Array<MeasuredPoint> = []
-  search(root, query, k, r, result)
+  search(root, query, k, r, sphere, result)
   return result
 }
 
-export function measure(a: Point2D, b: Point2D) {
-  return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2))
+export const SPHERE_RADIUS = 6371009.0
+
+export function measure(a: Point2D, b: Point2D, sphere: boolean = false) {
+  if (sphere) {
+    var lng1 = Math.PI * a.x / 180
+    var lat1 = Math.PI * a.y / 180
+    var lng2 = Math.PI * b.x / 180
+    var lat2 = Math.PI * b.y / 180
+    var lng = (lng1 - lng2) / 2
+    var lat = (lat1 - lat2) / 2
+    return SPHERE_RADIUS * 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(lat), 2) + Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin(lng), 2)))
+  } else {
+    return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2))
+  }
 }
 
-function search(node: SearchNode, pos: Point2D, k: number, r: number, result: Array<MeasuredPoint>) {
-  const d = measure(pos, node)
+function distance2longitude(pos: Point2D, lonitude: number): number {
+  var lng = Math.PI * Math.abs(pos.x - lonitude) / 180
+  var lat = Math.PI * pos.y / 180
+  return SPHERE_RADIUS * Math.asin(Math.sin(lng) * Math.cos(lat))
+}
+
+function search(node: SearchNode, pos: Point2D, k: number, r: number, sphere: boolean, result: Array<MeasuredPoint>) {
+  const d = measure(pos, node, sphere)
   const size = result.length
   var index = -1
   if (size > 0 && d < result[size - 1].dist) {
@@ -109,12 +160,22 @@ function search(node: SearchNode, pos: Point2D, k: number, r: number, result: Ar
   var value = compareX ? pos.x : pos.y
   var next = value < threshold ? node.left : node.right
   if (next) {
-    search(next, pos, k, r, result)
+    search(next, pos, k, r, sphere, result)
   }
 
+  var dist2th: number
+  if ( sphere ){
+    if ( compareX ){
+      dist2th = distance2longitude(pos, threshold)
+    } else {
+      dist2th = SPHERE_RADIUS * Math.PI * Math.abs(pos.y - threshold) / 180
+    }
+  } else {
+    dist2th = Math.abs(value - threshold)
+  }
   next = value < threshold ? node.right : node.left
-  if (next && Math.abs(value - threshold) < Math.max(result[result.length - 1].dist, r)) {
-    search(next, pos, k, r, result)
+  if (next && dist2th < Math.max(result[result.length - 1].dist, r)) {
+    search(next, pos, k, r, sphere, result)
   }
 }
 
