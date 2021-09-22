@@ -26,25 +26,12 @@ export interface MeasuredPoint extends Point2D {
   dist: number
 }
 
-const SPHERE_RADIUS = 6371009.0
 type Comparator<T> = (a: T, b: T) => number
 const X_COMPARATOR: Comparator<Point2D> = (a, b) => {
-  if (a.x < b.x) {
-    return -1
-  } else if (a.x > b.x) {
-    return 1
-  } else {
-    return 0
-  }
+  return a.x - b.x
 }
 const Y_COMPARATOR: Comparator<Point2D> = (a, b) => {
-  if (a.y < b.y) {
-    return -1
-  } else if (a.y > b.y) {
-    return 1
-  } else {
-    return 0
-  }
+  return a.y - b.y
 }
 
 function getComparator(depth: number): Comparator<Point2D> {
