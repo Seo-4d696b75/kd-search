@@ -33,13 +33,13 @@ function compareAndCheck(queries: Array<KdTree.Point2D>, points: Array<KdTree.Po
   })
 }
 
-describe("kd-tree", () => {
+describe("euclidean", () => {
   var tree: KdTree.SearchNode
   test("build", () => {
     tree = KdTree.buildTree(array2)
   })
   test("normal", () => {
-    compareAndCheck(KdTree.randomPoints(100), array1, tree)
+    compareAndCheck(KdTree.randomPoints(10), array1, tree)
   })
   test("singular", () => {
     var points: Array<KdTree.Point2D> = []
