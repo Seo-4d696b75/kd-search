@@ -4,8 +4,8 @@ import { posix } from "path/posix"
  * 平面状の点  
  * 
  * 球面を扱う場合は  
- * - x: 経度 longitude
- * - y: 緯度 latitude
+ * - x: 経度 longitude [deg] -180 <= x <= 180
+ * - y: 緯度 latitude [deg] -90 <= y <= 90
  */
 export interface Point2D {
   x: number
@@ -107,17 +107,20 @@ export function releaseTree(root: SearchNode) {
  */
 export function searchNearest(root: SearchNode, query: Point2D, k: number, r: number = 0, method: MeasureType = MeasureType.Euclidean): Array<MeasuredPoint> {
   var result: Array<MeasuredPoint> = []
+  var state: EuclideanSearch | GeodesicSearch
   if (method === MeasureType.Euclidean) {
-    searchEuclidean({
+    state = {
       type: MeasureType.Euclidean,
       node: root,
       query: query,
       k: k,
       r: r,
-      result: result
-    })
+      result: result,
+      traverse: 0,
+    }
+    searchEuclidean(state)
   } else {
-    var state: GeodesicSearch = {
+    state = {
       type: MeasureType.Geodesic,
       node: root,
       query: query,
@@ -129,10 +132,12 @@ export function searchNearest(root: SearchNode, query: Point2D, k: number, r: nu
         south: -90,
         west: -180,
         east: 180
-      }
+      },
+      traverse: 0
     }
     searchGeodesic(state)
   }
+  console.debug(`traverse: ${state.traverse}(k=${k},r=${r})`)
   return result
 }
 
@@ -164,7 +169,8 @@ interface SearchStateBase<T> {
   query: Point2D
   k: number
   r: number
-  result: Array<MeasuredPoint>
+  result: Array<MeasuredPoint>,
+  traverse: number
 }
 
 interface Region {
@@ -195,6 +201,7 @@ interface GeodesicSearch extends SearchStateBase<MeasureType.Geodesic> {
 function searchEuclidean(state: EuclideanSearch) {
   const node = state.node
   if (!node) return
+  state.traverse += 1
   const pos = state.query
   const d = measure(pos, node, state.type)
   const size = state.result.length
@@ -214,7 +221,7 @@ function searchEuclidean(state: EuclideanSearch) {
       y: node.y,
       dist: d
     })
-    if (size === state.k && state.result[size].dist > state.r) {
+    if (size >= state.k && state.result[size].dist > state.r) {
       state.result.pop()
     }
   }
@@ -226,20 +233,23 @@ function searchEuclidean(state: EuclideanSearch) {
     node: value < threshold ? node.left : node.right
   }
   searchEuclidean(next)
+  state.traverse = next.traverse
 
   var dist2th = Math.abs(value - threshold)
   next = {
     ...state,
     node: value < threshold ? node.right : node.left
   }
-  if (dist2th < Math.max(state.result[state.result.length - 1].dist, state.r)) {
+  if (dist2th <= Math.max(state.result[state.result.length - 1].dist, state.r)) {
     searchEuclidean(next)
+    state.traverse = next.traverse
   }
 }
 
 function searchGeodesic(state: GeodesicSearch) {
   const node = state.node
   if (!node) return
+  state.traverse += 1
   const pos = state.query
   const d = measure(pos, node, state.type)
   const size = state.result.length
@@ -259,7 +269,7 @@ function searchGeodesic(state: GeodesicSearch) {
       y: node.y,
       dist: d
     })
-    if (size === state.k && state.result[size].dist > state.r) {
+    if (size >= state.k && state.result[size].dist > state.r) {
       state.result.pop()
     }
   }
@@ -271,17 +281,19 @@ function searchGeodesic(state: GeodesicSearch) {
     region: region
   }
   searchGeodesic(next)
+  state.traverse = next.traverse
 
   const opposite = invert(which)
   region = nextRegion(node, state.region, opposite)
   var dist2th = minDist2Region(pos, region, node)
-  if (dist2th < Math.max(state.result[state.result.length - 1].dist, state.r)) {
+  if (dist2th <= Math.max(state.result[state.result.length - 1].dist, state.r)) {
     next = {
       ...state,
       node: getChild(node, opposite),
       region: region
     }
     searchGeodesic(next)
+    state.traverse = next.traverse
   }
 }
 
@@ -295,24 +307,34 @@ export function randomPoints(size: number, x_lower: number = 0, x_upper: number 
   })
 }
 
+/**
+ * ある点と緯線・経線で囲まれた領域中の点との距離の下限を計算する
+ * 
+ * @param pos regionの内部にはないこと
+ * @param region 
+ * @param node 現在の探索ノード
+ * @returns 領域中の点との距離の最小値以下
+ */
 function minDist2Region(pos: Point2D, region: Region, node: SearchNode): number {
+  if (region.west < pos.x && pos.x < region.east &&
+    region.south < pos.y && pos.y < region.north) {
+    throw Error("pos in the region!")
+  }
   if (node.depth % 2 === 0) {
+    if (region.west < pos.x && pos.x < region.east) {
+      throw Error("pos in the range of longitude!")
+    }
     return Math.min(
-      measure(pos, { x: region.east, y: region.north }, MeasureType.Geodesic),
-      measure(pos, { x: region.east, y: region.south }, MeasureType.Geodesic),
-      measure(pos, { x: region.west, y: region.south }, MeasureType.Geodesic),
-      measure(pos, { x: region.west, y: region.north }, MeasureType.Geodesic),
-      distance2longitude(pos, region.east),
-      distance2longitude(pos, region.west)
+      dist2lng(pos, region.east, region.south, region.north),
+      dist2lng(pos, region.west, region.south, region.north)
     )
   } else {
+    if (region.south < pos.y && pos.y < region.north) {
+      throw Error("pos in the range of latitude!")
+    }
     return Math.min(
-      measure(pos, { x: region.east, y: region.north }, MeasureType.Geodesic),
-      measure(pos, { x: region.east, y: region.south }, MeasureType.Geodesic),
-      measure(pos, { x: region.west, y: region.south }, MeasureType.Geodesic),
-      measure(pos, { x: region.west, y: region.north }, MeasureType.Geodesic),
-      SPHERE_RADIUS * Math.PI * Math.abs(pos.y - region.north) / 180,
-      SPHERE_RADIUS * Math.PI * Math.abs(pos.y - region.south) / 180
+      dist2lat(pos, region.north, region.west, region.east),
+      dist2lat(pos, region.south, region.west, region.east)
     )
   }
 }
@@ -323,6 +345,12 @@ function normalizeLng(lng: number): number {
   return lng
 }
 
+/**
+ * 経度の差の絶対値 
+ * @param lng1 
+ * @param lng2 
+ * @returns 0 <= diff [deg] <= 180
+ */
 function absLng(lng1: number, lng2: number): number {
   return Math.abs(normalizeLng(lng1 - lng2))
 }
@@ -359,31 +387,55 @@ function nextRegion(node: SearchNode, current: Region, which: ChildType): Region
   return next
 }
 
-
-function distance2longitude(pos: Point2D, lonitude: number): number {
-  var lng = Math.PI * Math.abs(pos.x - lonitude) / 180
+/**
+ * 経線との最短距離
+ * @param pos 
+ * @param longitude {(x,y)|x=longitude, -90<=y<=90} の経線
+ * @returns 
+ */
+function distance2longitude(pos: Point2D, longitude: number): number {
+  var lng = Math.PI * Math.abs(pos.x - longitude) / 180
   var lat = Math.PI * pos.y / 180
-  if (absLng(pos.x, lonitude) <= 90) {
+  if (absLng(pos.x, longitude) <= 90) {
     return SPHERE_RADIUS * Math.asin(Math.sin(lng) * Math.cos(lat))
   } else {
     return SPHERE_RADIUS * Math.PI * Math.min(Math.abs(90 - pos.y), Math.abs(-90 - pos.y)) / 180
   }
 }
 
-function distance2longitudeEdge(pos: Point2D, region: Region, which: ChildType): number {
-  if (which === "left") {
-    return Math.min(
-      distance2longitude(pos, region.east),
-      measure(pos, { x: region.east, y: region.north }, MeasureType.Geodesic),
-      measure(pos, { x: region.east, y: region.south }, MeasureType.Geodesic),
-    )
-  } else {
-    return Math.min(
-      distance2longitude(pos, region.west),
-      measure(pos, { x: region.west, y: region.north }, MeasureType.Geodesic),
-      measure(pos, { x: region.west, y: region.south }, MeasureType.Geodesic),
-    )
+function dist2lng(pos: Point2D, longitude: number, south: number, north: number): number {
+  // まず端点との距離
+  var dist = [
+    measure(pos, { x: longitude, y: south }, MeasureType.Geodesic),
+    measure(pos, { x: longitude, y: north }, MeasureType.Geodesic)
+  ]
+  var d_lng = absLng(pos.x, longitude)
+  if (d_lng <= 90) {
+    // 経線への垂線の長さ
+    var lng = Math.PI * d_lng / 180
+    var lat = Math.PI * pos.y / 180
+    var h = SPHERE_RADIUS * Math.asin(Math.sin(lng) * Math.cos(lat))
+    // 垂線の足の緯度
+    var y = 90 - 180 * Math.atan2(Math.cos(lng), Math.tan(lat)) / Math.PI
+    if (south < y && y < north) {
+      dist.push(h)
+    }
   }
+  return Math.min(...dist)
+}
+
+function dist2lat(pos: Point2D, latitude: number, west: number, east: number): number {
+  // まず端点との距離
+  var dist = [
+    measure(pos, { x: east, y: latitude }, MeasureType.Geodesic),
+    measure(pos, { x: west, y: latitude }, MeasureType.Geodesic)
+  ]
+  if (west < pos.x && pos.x < east) {
+    // 垂線の長さ(=経線の一部)
+    var h = SPHERE_RADIUS * Math.PI * Math.abs(pos.y - latitude) / 180
+    dist.push(h)
+  }
+  return Math.min(...dist)
 }
 
 if (process.argv[2]) {
