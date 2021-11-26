@@ -16,14 +16,16 @@ function compareAndCheck(queries: Array<KdTree.Point2D>, points: Array<KdTree.Po
       var k = Math.round(Math.random() * 20) + 1
       var result = KdTree.searchNearest(tree, query, k, 0, KdTree.MeasureType.Geodesic)
       if (!KdTree.pointArrayEquals(result, points.slice(0, result.length))) {
-        console.error(`not matched. k=${k} r=0 q=(${query.x},${query.y})`)
+        console.error(`not matched. k=${k} r=0 q=(${query.x},${query.y})`, 
+        "kdtree", result, "qsort", points.slice(0, result.length))
       }
       // r > 0
       k = Math.round(Math.random() * 5) + 1
       var r = Math.random() * 20
       var result2 = KdTree.searchNearest(tree, query, k, 0, KdTree.MeasureType.Geodesic)
       if (!KdTree.pointArrayEquals(result2, points.slice(0, result2.length))) {
-        console.error(`not matched. k=1 r=${r} q=(${query.x},${query.y})`)
+        console.error(`not matched. k=1 r=${r} q=(${query.x},${query.y})`,
+        "kdtree", result, "qsort", points.slice(0, result.length))
       }
     }
   })

@@ -1,4 +1,3 @@
-import { posix } from "path/posix"
 
 /**
  * 平面状の点  
@@ -236,11 +235,11 @@ function searchEuclidean(state: EuclideanSearch) {
   state.traverse = next.traverse
 
   var dist2th = Math.abs(value - threshold)
-  next = {
-    ...state,
-    node: value < threshold ? node.right : node.left
-  }
   if (dist2th <= Math.max(state.result[state.result.length - 1].dist, state.r)) {
+    next = {
+      ...state,
+      node: value < threshold ? node.right : node.left
+    }
     searchEuclidean(next)
     state.traverse = next.traverse
   }
@@ -385,22 +384,6 @@ function nextRegion(node: SearchNode, current: Region, which: ChildType): Region
     }
   }
   return next
-}
-
-/**
- * 経線との最短距離
- * @param pos 
- * @param longitude {(x,y)|x=longitude, -90<=y<=90} の経線
- * @returns 
- */
-function distance2longitude(pos: Point2D, longitude: number): number {
-  var lng = Math.PI * Math.abs(pos.x - longitude) / 180
-  var lat = Math.PI * pos.y / 180
-  if (absLng(pos.x, longitude) <= 90) {
-    return SPHERE_RADIUS * Math.asin(Math.sin(lng) * Math.cos(lat))
-  } else {
-    return SPHERE_RADIUS * Math.PI * Math.min(Math.abs(90 - pos.y), Math.abs(-90 - pos.y)) / 180
-  }
 }
 
 function dist2lng(pos: Point2D, longitude: number, south: number, north: number): number {
