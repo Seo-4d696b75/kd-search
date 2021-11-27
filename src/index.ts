@@ -1,3 +1,4 @@
+import { randomPoints } from "./test_util"
 
 /**
  * 平面状の点  
@@ -296,15 +297,6 @@ function searchGeodesic(state: GeodesicSearch) {
   }
 }
 
-export function randomPoints(size: number, x_lower: number = 0, x_upper: number = 100,
-  y_lower: number = 0, y_upper: number = 100): Array<Point2D> {
-  return Array(size).fill(0).map(() => {
-    return {
-      x: Math.random() * (x_upper - x_lower) + x_lower,
-      y: Math.random() * (y_upper - y_lower) + y_lower,
-    }
-  })
-}
 
 /**
  * ある点と緯線・経線で囲まれた領域中の点との距離の最小値を計算する
@@ -433,19 +425,16 @@ function dist2lat(pos: Point2D, latitude: number, west: number, east: number): n
 if (process.argv[2]) {
   const size = parseInt(process.argv[2])
   console.log("points size:", size * 100, "query size:", size)
-  var array = randomPoints(size * 100)
-  var array1 = Array.from(array)
-  var array2 = Array.from(array)
-
-  var queries = randomPoints(size)
+  var array = randomPoints(size * 100, "points", -180, 180, -90, 90)
+  var queries = randomPoints(size, "query", -180, 180, -90, 90)
   var tree: SearchNode
   console.time("sort")
   queries.forEach(query => {
-    array1.sort((a, b) => measure(a, query, MeasureType.Geodesic) - measure(b, query, MeasureType.Geodesic))
+    array.sort((a, b) => measure(a, query, MeasureType.Geodesic) - measure(b, query, MeasureType.Geodesic))
   })
   console.timeEnd("sort")
   console.time("kd-tree-build")
-  tree = buildTree(array2)
+  tree = buildTree(array)
   console.timeEnd("kd-tree-build")
   console.time("kd-tree")
   queries.forEach(query => {
