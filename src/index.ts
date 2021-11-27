@@ -307,12 +307,12 @@ export function randomPoints(size: number, x_lower: number = 0, x_upper: number 
 }
 
 /**
- * ある点と緯線・経線で囲まれた領域中の点との距離の下限を計算する
+ * ある点と緯線・経線で囲まれた領域中の点との距離の最小値を計算する
  * 
  * @param pos regionの内部にはないこと
  * @param region 
  * @param node 現在の探索ノード
- * @returns 領域中の点との距離の最小値以下
+ * @returns 領域中の点との距離の最小値
  */
 function minDist2Region(pos: Point2D, region: Region, node: SearchNode): number {
   if (region.west < pos.x && pos.x < region.east &&
@@ -338,12 +338,6 @@ function minDist2Region(pos: Point2D, region: Region, node: SearchNode): number 
   }
 }
 
-function normalizeLng(lng: number): number {
-  while (lng > 180) lng -= 360
-  while (lng < -180) lng += 360
-  return lng
-}
-
 /**
  * 経度の差の絶対値 
  * @param lng1 
@@ -351,7 +345,10 @@ function normalizeLng(lng: number): number {
  * @returns 0 <= diff [deg] <= 180
  */
 function absLng(lng1: number, lng2: number): number {
-  return Math.abs(normalizeLng(lng1 - lng2))
+  var lng = lng1 - lng2
+  while (lng > 180) lng -= 360
+  while (lng < -180) lng += 360
+  return Math.abs(lng)
 }
 
 function nextWhichChild(pos: Point2D, region: Region, node: SearchNode): ChildType {
@@ -386,6 +383,12 @@ function nextRegion(node: SearchNode, current: Region, which: ChildType): Region
   return next
 }
 
+/**
+ * 経線上の線分との距離  
+ * @param pos この点からの距離を計算
+ * @param longitude 経線の経度
+ * @param south, north 線分の端点の緯度 (south < north)
+ */
 function dist2lng(pos: Point2D, longitude: number, south: number, north: number): number {
   // まず端点との距離
   var dist = [
@@ -407,6 +410,12 @@ function dist2lng(pos: Point2D, longitude: number, south: number, north: number)
   return Math.min(...dist)
 }
 
+/**
+ * 緯線上の線分との距離  
+ * @param pos この点からの距離を計算
+ * @param latitude 緯線の緯度
+ * @param west, east 線分の端点の経度 (west < east)
+ */
 function dist2lat(pos: Point2D, latitude: number, west: number, east: number): number {
   // まず端点との距離
   var dist = [
