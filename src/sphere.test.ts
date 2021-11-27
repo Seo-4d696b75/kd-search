@@ -1,4 +1,4 @@
-import * as KdTree from "./index"
+import * as KdTree from "./tree"
 import { compareAndCheck, randomPoints } from "./test_util"
 
 var array = randomPoints(1000, "geo-points", -100, 0, -10, 70)

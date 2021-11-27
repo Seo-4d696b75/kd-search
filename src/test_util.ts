@@ -1,5 +1,6 @@
 import seedrandom from "seedrandom"
-import {measure, MeasureType, Point2D, pointArrayEquals, searchNearest, SearchNode} from "./index"
+import { searchNearest } from "./search"
+import {measure, MeasureType, Point2D, pointArrayEquals, SearchNode} from "./tree"
 
 export function randomPoints(size: number, seed: string = new Date().toString(), x_lower: number = 0, x_upper: number = 100,
   y_lower: number = 0, y_upper: number = 100): Array<Point2D> {
