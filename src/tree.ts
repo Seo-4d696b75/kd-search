@@ -14,9 +14,9 @@ export function pointEquals(a: Point2D, b: Point2D) {
   return a.x === b.x && a.y === b.y
 }
 
-export function pointArrayEquals(a: Array<Point2D>, b: Array<Point2D>) {
+export function pointArrayEquals(a: Point2D[], b: Point2D[]) {
   if (a.length !== b.length) return false
-  for (var i = 0; i < a.length; i++) {
+  for (let i = 0; i < a.length; i++) {
     if (!pointEquals(a[i], b[i])) return false
   }
   return true
@@ -52,15 +52,20 @@ function getComparator(depth: number): Comparator<Point2D> {
   }
 }
 
-export function buildTree(points: Array<Point2D>): SearchNode {
-  return buildSubTree(points, 0)
+export enum MeasureType {
+  Euclidean,
+  Geodesic
 }
 
-function buildSubTree(points: Array<Point2D>, depth: number): SearchNode {
+export function buildTree(points: Point2D[]): SearchNode {
+  return buildSubTree(Array.from(points), 0)
+}
+
+function buildSubTree(points: Point2D[], depth: number): SearchNode {
   points.sort(getComparator(depth))
-  var mid = Math.floor(points.length / 2)
-  var p = points[mid]
-  var n: SearchNode = {
+  const mid = Math.floor(points.length / 2)
+  const p = points[mid]
+  const n: SearchNode = {
     x: p.x,
     y: p.y,
     depth: depth
@@ -85,19 +90,15 @@ export const SPHERE_RADIUS = 6371009.0
 
 export function measure(a: Point2D, b: Point2D, method: MeasureType = MeasureType.Euclidean) {
   if (method === MeasureType.Geodesic) {
-    var lng1 = Math.PI * a.x / 180
-    var lat1 = Math.PI * a.y / 180
-    var lng2 = Math.PI * b.x / 180
-    var lat2 = Math.PI * b.y / 180
-    var lng = (lng1 - lng2) / 2
-    var lat = (lat1 - lat2) / 2
+    const lng1 = Math.PI * a.x / 180
+    const lat1 = Math.PI * a.y / 180
+    const lng2 = Math.PI * b.x / 180
+    const lat2 = Math.PI * b.y / 180
+    const lng = (lng1 - lng2) / 2
+    const lat = (lat1 - lat2) / 2
     return SPHERE_RADIUS * 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(lat), 2) + Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin(lng), 2)))
   } else {
     return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2))
   }
 }
 
-export enum MeasureType {
-  Euclidean,
-  Geodesic
-}

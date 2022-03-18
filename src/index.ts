@@ -12,7 +12,7 @@ if (process.argv[2]) {
     { x: 180, y: 10 },
     { x: 175, y: -20 }
   )
-  var tree: SearchNode
+  let tree: SearchNode
   console.time("sort")
   queries.forEach(query => {
     array.sort((a, b) => measure(a, query, MeasureType.Geodesic) - measure(b, query, MeasureType.Geodesic))

@@ -22,16 +22,16 @@ export function compareAndCheck(queries: Array<Point2D>, points: Array<Point2D>,
     // various params: k, r
     for (var i = 0; i < 10; i++) {
       // r = 0
-      var k = Math.floor(random() * Math.min(20, points.length * 0.2)) + 1
-      var result = searchNearest(tree, query, k, 0, type)
+      let k = Math.floor(random() * Math.min(20, points.length * 0.2)) + 1
+      let result = searchNearest(tree, query, k, 0, type)
       if (!pointArrayEquals(result, points.slice(0, result.length))) {
         console.error(`not matched. k=${k} r=0`)
       }
       // r > 0
       k = Math.floor(random() * Math.min(5, points.length * 0.1)) + 1
-      var r = random() * 0.2 * dist_max
-      var result2 = searchNearest(tree, query, k, r, type)
-      if (!pointArrayEquals(result2, points.slice(0, result2.length))) {
+      const r = random() * 0.2 * dist_max
+      result = searchNearest(tree, query, k, r, type)
+      if (!pointArrayEquals(result, points.slice(0, result.length))) {
         console.error(`not matched. k=${k} r=${r}`)
       }
     }
